@@ -5,7 +5,7 @@ const users = new UsersMongoDao();
 import { Router } from "express";
 const router = Router();
 import passport from "passport";
-import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
+import { Strategy as Auth0Strategy,  } from "passport-auth0";
 import { Strategy as LocalStrategy } from "passport-local";
 
 declare global {
@@ -40,21 +40,20 @@ passport.use(
   )
 );
 passport.use(
-  new JwtStrategy(
+  new Auth0Strategy(
     {
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_ACCESS_SECRET,
+      domain: process.env.AUTH0_DOMAIN,
+      clientID: process.env.AUTH0_CLIENT_ID,
+      clientSecret: process.env.AUTH0_CLIENT_SECRET,
+      callbackURL: process.env.AUTH0_CALLBACK_URL,
+      passReqToCallback: true,
+      state:false
     },
-    async (jsonPayload, done) => {
+    async (req,accessToken,refreshToken,extraParams,profile, done) => {
       try {
-        console.log({jsonPayload});
+        console.log({accessToken,refreshToken,extraParams,profile});
         
-        const user = await users.findOne({ _id: jsonPayload.sub });
-        if (!user) {
-          console.log("no se encontro el usuario");
-          return done(null, false);
-        }
-        done(null, {id:user._id,name:user.name,email:user.email});
+        done(null,profile);
       } catch (error) {
         console.log(error);
         done(error, false);
@@ -64,10 +63,9 @@ passport.use(
 );
 router.post(
   "/signin", 
-  passport.authenticate("signin", { session: false }),
+  passport.authenticate("auth0", {scope:"openid email profile"}),
   (req,res)=>{
-  const token = jwt.sign(({sub:req.user.id}),process.env.JWT_ACCESS_SECRET,{expiresIn:"15m"})
-  res.json({token})
+  res.json({profile:req.user})
 });
 passport.use(
   "signup",
@@ -89,12 +87,13 @@ router.post("/signup",passport.authenticate('signup',{session:false}), async (re
   res.json({token})
 });
 
-router.post(
-  "/profile",
-  passport.authenticate("jwt", { session: false }),
+
+router.get(
+  "/callback",
   (req, res) => {
-    res.json({ user: req.user });
+    res.json({ msg: "callback" });
   }
 );
+
 
 export default router;
