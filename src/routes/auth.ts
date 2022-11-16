@@ -63,7 +63,7 @@ passport.use(
 );
 router.post(
   "/signin", 
-  passport.authenticate("auth0", {scope:"openid email profile"}),
+  passport.authenticate("auth0", {scope:"email profile"}),
   (req,res)=>{
   res.json({profile:req.user})
 });
